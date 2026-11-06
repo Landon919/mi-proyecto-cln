@@ -13,4 +13,4 @@ jobs:
         run: |
           pip install -r requirements.txt
       - name: Run Tests
-        run: pytest tests/ --cov=src
+        run: python -m pytest tests/ --cov=src
