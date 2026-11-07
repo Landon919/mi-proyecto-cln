@@ -1,28 +1,37 @@
-import csv
-import os
+from decimal import Decimal
 
-class CsvRepository:
-    def __init__(self):
-        # Resuelve la ruta absoluta hacia la nueva carpeta data/
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(current_dir))
-        data_dir = os.path.join(project_root, "data")
+from src.domain.errores import EntidadNoEncontradaError
+from src.domain.modelos import Linea
+from src.domain.pedido import Pedido
+from src.domain.repositorios import PedidoRepository
+from src.infrastructure.database import SessionLocal
+from src.infrastructure.models import PedidoModel
 
-        self.actores = self._load_csv(os.path.join(data_dir, "actores.csv"), "actor_id")
-        self.catalogo = self._load_csv(os.path.join(data_dir, "catalogo.csv"), "recurso_id")
-        self.pedidos = {}
 
-    def _load_csv(self, filename, key_col):
-        data = {}
-        if os.path.exists(filename):
-            with open(filename, mode='r', encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    for k, v in row.items():
-                        if v is not None and str(v).isdigit(): 
-                            row[k] = int(v)
-                    if key_col in row:
-                        data[row[key_col]] = row
-        return data
+class SqlPedidoRepository(PedidoRepository):
+    def __init__(self, session_factory=SessionLocal):
+        self.session_factory = session_factory
 
-db_en_memoria = CsvRepository()
+    def guardar(self, pedido: Pedido):
+        with self.session_factory() as session:
+            session.merge(PedidoModel(
+                id=pedido.id,
+                cliente_id=pedido.cliente_id,
+                estado=pedido.estado.value,
+                promocion_activa=pedido.promocion_activa,
+                autorizado=pedido.autorizado,
+                motivo_cancelacion=pedido.motivo_cancelacion,
+                lineas=[{"recurso_id": l.recurso_id, "cantidad": l.cantidad,
+                         "precio_unitario": str(l.precio_unitario)} for l in pedido.lineas],
+            ))
+            session.commit()
+
+    def obtener_por_id(self, pedido_id: str) -> Pedido:
+        with self.session_factory() as session:
+            m = session.get(PedidoModel, pedido_id)
+            if m is None:
+                raise EntidadNoEncontradaError(f"Pedido no encontrado: {pedido_id}")
+            lineas = [Linea(l["recurso_id"], l["cantidad"], Decimal(l["precio_unitario"]))
+                      for l in m.lineas]
+            return Pedido(m.id, m.cliente_id, lineas, m.estado, m.promocion_activa,
+                          m.autorizado, m.motivo_cancelacion)
