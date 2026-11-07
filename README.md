@@ -2,11 +2,11 @@
 
 Implementación de una solución de software basada en lógica de negocio (DDD, Specification, State Machine) con API REST.
 
-## 🚀 Requisitos Previos
+## Requisitos Previos
 * Docker y Docker Compose
 * Python 3.10+ (si se ejecuta localmente sin Docker)
 
-## 🛠️ Instrucciones de Instalación y Ejecución
+## Instrucciones de Instalación y Ejecución
 Para levantar la base de datos, la API y ejecutar las pruebas en un entorno reproducible (12-Factor App):
 
 1. Clona este repositorio.
