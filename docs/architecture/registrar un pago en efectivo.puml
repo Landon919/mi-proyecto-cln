@@ -1,0 +1,40 @@
+@startuml secuencia-registrar-pago
+title Secuencia: registrar un pago en efectivo (CU-04, flujo principal)
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Caja
+participant "PagoApplicationService" as PS
+participant "ControlDeAcceso" as CA
+participant "RegistrarPagoHandler" as H
+participant "UnitOfWork" as UoW
+participant "PedidoRepository" as PR
+participant "Pedido" as P
+participant "Pago" as PG
+participant "PagoRepository" as PGR
+participant "PublicadorDeEventos" as EV
+
+Caja -> PS : registrarPago(pedidoId, método efectivo, monto recibido)
+PS -> CA : verificarPermiso(Caja, registrar pago)
+CA --> PS : permitido
+PS -> H : manejar(RegistrarPago)
+H -> UoW : iniciar()
+H -> PR : obtenerPorId(pedidoId)
+PR --> H : pedido
+H -> P : verificarListoParaCobro()
+H -> PG : crear(pedidoId, total, método, monto recibido)
+note right of PG
+  El método efectivo exige monto recibido >= total.
+  Con tarjeta no se guardan datos de la tarjeta.
+end note
+PG --> H : pago Pagado + evento PagoConfirmado
+H -> PGR : guardar(pago)
+H -> UoW : confirmar()
+H -> EV : publicar(PagoConfirmado)
+H --> PS : pago registrado con cambio
+PS --> Caja : pago registrado (cambio calculado)
+
+@enduml

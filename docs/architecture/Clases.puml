@@ -1,0 +1,331 @@
+@startuml clases
+title Sazón Urbano - Diagrama de clases (dominio, aplicación e infraestructura)
+
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #444444
+skinparam ArrowColor #555555
+skinparam defaultFontName Arial
+
+package "Dominio" #E1F5EE {
+
+  class Pedido <<AggregateRoot>> {
+    +PedidoId id
+    +Canal canal
+    +EstadoPedido estado
+    +Dinero total
+    +{static} crear(canal, lineas, cliente, responsable, disponibilidad)
+    +confirmar()
+    +aplicarPromocion(promocionAplicada)
+    +cancelar(solicitante, motivo, autorizador)
+    +verificarListoParaCobro()
+    +marcarEnPreparacion()
+    +marcarListo()
+    +marcarEntregado()
+    +marcarEntregaNoCompletada()
+  }
+  class LineaPedido <<Entidad>> {
+    +producto
+    +cantidad
+    +modificaciones
+  }
+  class PreparacionEstacion <<Entidad>> {
+    +estacion
+    +estado
+  }
+  class Cancelacion <<ValueObject>> {
+    +tipo
+    +motivo
+    +autorizadoPor
+  }
+  class PromocionAplicada <<ValueObject>> {
+    +promocionId
+    +descuento
+  }
+  class Dinero <<ValueObject>> {
+    +monto
+    +moneda
+  }
+
+  class Promocion <<AggregateRoot>> {
+    +PromocionId id
+    +esAplicableEn(fechaHora, productos, disponibilidad)
+    +calcularDescuento(pedido)
+  }
+  class Vigencia <<ValueObject>> {
+    +dias
+    +horario
+  }
+
+  class Inventario <<AggregateRoot>> {
+    +descontar(ingredientes)
+    +devolver(ingredientes)
+    +registrarMerma(ingrediente, cantidad, motivo, responsable)
+  }
+  class ExistenciaIngrediente <<Entidad>> {
+    +ingrediente
+    +cantidad
+    +puntoDeReorden
+  }
+  class Merma <<ValueObject>> {
+    +ingrediente
+    +cantidad
+    +motivo
+    +responsable
+  }
+
+  class Entrega <<AggregateRoot>> {
+    +EntregaId id
+    +estado
+    +asignar(repartidorId)
+    +registrarSalida()
+    +confirmar(evidencia)
+    +fallar(motivo)
+  }
+  class EvidenciaDeEntrega <<ValueObject>> {
+    +foto
+    +firma
+  }
+
+  class Repartidor <<AggregateRoot>> {
+    +RepartidorId id
+    +disponible
+    +zona
+    +ocupar()
+    +liberar()
+  }
+
+  class Pago <<AggregateRoot>> {
+    +PagoId id
+    +Dinero monto
+    +EstadoPago estado
+    +{static} crear(pedidoId, total, metodo, montoRecibido)
+    +confirmar()
+    +calcularCambio()
+  }
+  interface MetodoDePago <<ValueObject>> {
+    +estadoInicial()
+    +validar(monto, total)
+  }
+  class MetodoEfectivo
+  class MetodoTarjeta
+  class MetodoTransferencia
+
+  class Cliente <<AggregateRoot>> {
+    +ClienteId id
+    +telefono
+    +acreditarPuntos(monto, politica)
+    +canjear(puntos)
+  }
+  class PoliticaDeLealtad <<ValueObject>> {
+    +montoPorPunto
+  }
+
+  class AplicadorDePromocion <<DomainService>> {
+    +aplicar(pedido, promocion, fechaHora, disponibilidad)
+  }
+  class AsignadorDeEntregas <<DomainService>> {
+    +asignar(entrega, repartidor)
+  }
+  class ConciliadorDeCaja <<DomainService>> {
+    +conciliar(pagos, turno)
+  }
+
+  interface PedidoRepository {
+    +obtenerPorId(pedidoId)
+    +guardar(pedido)
+  }
+  interface PromocionRepository {
+    +obtenerPorId(promocionId)
+  }
+  interface InventarioRepository {
+    +obtener()
+    +guardar(inventario)
+  }
+  interface EntregaRepository {
+    +obtenerPorId(entregaId)
+    +guardar(entrega)
+  }
+  interface RepartidorRepository {
+    +obtenerPorId(repartidorId)
+    +guardar(repartidor)
+  }
+  interface PagoRepository {
+    +obtenerPorId(pagoId)
+    +guardar(pago)
+  }
+  interface ClienteRepository {
+    +obtenerPorId(clienteId)
+    +guardar(cliente)
+  }
+  interface UnitOfWork {
+    +iniciar()
+    +confirmar()
+    +deshacer()
+  }
+
+  Pedido "1" *-- "1..*" LineaPedido : contiene
+  Pedido "1" *-- "1..*" PreparacionEstacion : contiene
+  Pedido *-- Cancelacion
+  Pedido *-- PromocionAplicada
+  Pedido *-- Dinero
+  Promocion *-- Vigencia
+  Inventario "1" *-- "1..*" ExistenciaIngrediente : contiene
+  Inventario *-- Merma
+  Entrega *-- EvidenciaDeEntrega
+  Pago *-- MetodoDePago
+  MetodoEfectivo ..|> MetodoDePago
+  MetodoTarjeta ..|> MetodoDePago
+  MetodoTransferencia ..|> MetodoDePago
+  Cliente ..> PoliticaDeLealtad : aplica
+
+  Entrega ..> Pedido : referencia por ID
+  Entrega ..> Repartidor : referencia por ID
+  Pago ..> Pedido : referencia por ID
+  Cliente ..> Pedido : historial por ID
+  Pedido ..> Promocion : referencia por ID
+
+  AplicadorDePromocion ..> Pedido
+  AplicadorDePromocion ..> Promocion
+  AsignadorDeEntregas ..> Entrega
+  AsignadorDeEntregas ..> Repartidor
+  ConciliadorDeCaja ..> Pago
+
+  PedidoRepository ..> Pedido : gestiona
+  PromocionRepository ..> Promocion : gestiona
+  InventarioRepository ..> Inventario : gestiona
+  EntregaRepository ..> Entrega : gestiona
+  RepartidorRepository ..> Repartidor : gestiona
+  PagoRepository ..> Pago : gestiona
+  ClienteRepository ..> Cliente : gestiona
+}
+
+package "Aplicación" #E6F1FB {
+
+  class PedidoApplicationService <<ApplicationService>> {
+    +registrarPedido(comando)
+    +aplicarPromocion(comando)
+    +cancelarPedido(comando)
+  }
+  class PagoApplicationService <<ApplicationService>> {
+    +registrarPago(solicitud)
+  }
+  class EntregaApplicationService <<ApplicationService>> {
+    +gestionarEntrega(solicitud)
+  }
+
+  class RegistrarPedidoHandler <<CommandHandler>> {
+    +manejar(RegistrarPedido)
+  }
+  class AplicarPromocionHandler <<CommandHandler>> {
+    +manejar(AplicarPromocion)
+  }
+  class CancelarPedidoHandler <<CommandHandler>> {
+    +manejar(CancelarPedido)
+  }
+  class RegistrarPagoHandler <<CommandHandler>> {
+    +manejar(RegistrarPago)
+  }
+  class ConfirmarTransferenciaHandler <<CommandHandler>> {
+    +manejar(ConfirmarTransferencia)
+  }
+  class AsignarRepartidorHandler <<CommandHandler>> {
+    +manejar(AsignarRepartidor)
+  }
+
+  interface ControlDeAcceso {
+    +verificarPermiso(responsable, accion)
+  }
+  interface PublicadorDeEventos {
+    +publicar(eventos)
+  }
+  interface Notificador {
+    +avisar(destinatarios, mensaje)
+  }
+  interface ConsultasDeInventario {
+    +hayStock(producto, cantidad)
+  }
+
+  PedidoApplicationService ..> ControlDeAcceso
+  PagoApplicationService ..> ControlDeAcceso
+  EntregaApplicationService ..> ControlDeAcceso
+
+  PedidoApplicationService ..> RegistrarPedidoHandler : delega
+  PedidoApplicationService ..> AplicarPromocionHandler : delega
+  PedidoApplicationService ..> CancelarPedidoHandler : delega
+  PagoApplicationService ..> RegistrarPagoHandler : delega
+  PagoApplicationService ..> ConfirmarTransferenciaHandler : delega
+  EntregaApplicationService ..> AsignarRepartidorHandler : delega
+
+  RegistrarPedidoHandler ..> PedidoRepository
+  RegistrarPedidoHandler ..> ConsultasDeInventario
+  RegistrarPedidoHandler ..> UnitOfWork
+  RegistrarPedidoHandler ..> PublicadorDeEventos
+
+  AplicarPromocionHandler ..> PedidoRepository
+  AplicarPromocionHandler ..> PromocionRepository
+  AplicarPromocionHandler ..> ConsultasDeInventario
+  AplicarPromocionHandler ..> AplicadorDePromocion
+  AplicarPromocionHandler ..> UnitOfWork
+  AplicarPromocionHandler ..> PublicadorDeEventos
+
+  CancelarPedidoHandler ..> PedidoRepository
+  CancelarPedidoHandler ..> InventarioRepository
+  CancelarPedidoHandler ..> UnitOfWork
+  CancelarPedidoHandler ..> PublicadorDeEventos
+
+  RegistrarPagoHandler ..> PedidoRepository
+  RegistrarPagoHandler ..> PagoRepository
+  RegistrarPagoHandler ..> UnitOfWork
+  RegistrarPagoHandler ..> PublicadorDeEventos
+  RegistrarPagoHandler ..> Notificador
+
+  ConfirmarTransferenciaHandler ..> PagoRepository
+  ConfirmarTransferenciaHandler ..> ClienteRepository
+  ConfirmarTransferenciaHandler ..> UnitOfWork
+  ConfirmarTransferenciaHandler ..> PublicadorDeEventos
+
+  AsignarRepartidorHandler ..> PedidoRepository
+  AsignarRepartidorHandler ..> RepartidorRepository
+  AsignarRepartidorHandler ..> EntregaRepository
+  AsignarRepartidorHandler ..> AsignadorDeEntregas
+  AsignarRepartidorHandler ..> UnitOfWork
+}
+
+package "Infraestructura" #FAEEDA {
+  class PedidoRepositoryEnMemoria <<Implementacion>>
+  class PromocionRepositoryEnMemoria <<Implementacion>>
+  class InventarioRepositoryEnMemoria <<Implementacion>>
+  class EntregaRepositoryEnMemoria <<Implementacion>>
+  class RepartidorRepositoryEnMemoria <<Implementacion>>
+  class PagoRepositoryEnMemoria <<Implementacion>>
+  class ClienteRepositoryEnMemoria <<Implementacion>>
+  class UnitOfWorkEnMemoria <<Implementacion>>
+  class PublicadorDeEventosEnMemoria <<Implementacion>>
+  class NotificadorInterno <<Implementacion>>
+  class ControlDeAccesoPorRol <<Implementacion>>
+  class ConsultasDeInventarioEnMemoria <<Implementacion>>
+
+  PedidoRepositoryEnMemoria ..|> PedidoRepository
+  PromocionRepositoryEnMemoria ..|> PromocionRepository
+  InventarioRepositoryEnMemoria ..|> InventarioRepository
+  EntregaRepositoryEnMemoria ..|> EntregaRepository
+  RepartidorRepositoryEnMemoria ..|> RepartidorRepository
+  PagoRepositoryEnMemoria ..|> PagoRepository
+  ClienteRepositoryEnMemoria ..|> ClienteRepository
+  UnitOfWorkEnMemoria ..|> UnitOfWork
+  PublicadorDeEventosEnMemoria ..|> PublicadorDeEventos
+  NotificadorInterno ..|> Notificador
+  ControlDeAccesoPorRol ..|> ControlDeAcceso
+  ConsultasDeInventarioEnMemoria ..|> ConsultasDeInventario
+}
+
+note as N1
+  Por claridad se dibujan seis de los nueve handlers
+  y no se dibujan las queries (ConsultasDePedidos,
+  ConsultasDeClientes y ConsultasDeCaja).
+end note
+
+@enduml
