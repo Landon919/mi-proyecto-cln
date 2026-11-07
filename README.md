@@ -8,8 +8,6 @@ Producto Integrador de Aprendizaje - Componentes de Lógica de Negocio (UANL FIM
 
 ## Equipo
 - Landon Alexander Bautista Hernandez (2101662)
-- Karla Judith Baez Villanueva (2107930)
-- Alexa Daiana Amaya Torres (2100425)
 
 ## Descripción
 Sazón Urbano es un restaurante con atención en mesa, pedidos para llevar y entrega a
