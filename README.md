@@ -2,9 +2,9 @@
 
 Producto Integrador de Aprendizaje - Componentes de Lógica de Negocio (UANL FIME).
 
-- **Repositorio:** <URL del repo en GitHub>
+- **Repositorio:** <[URL del repo en GitHub](https://github.com/Landon919/mi-proyecto-cln.git)>
 - **Sistema desplegado:** <URL de Render>
-- **Swagger UI:** <URL de Render>/docs
+- **Swagger UI:** <[URL de Render](https://sazon-urbano.onrender.com/docs)>
 
 ## Equipo
 - Landon Alexander Bautista Hernandez (2101662)
